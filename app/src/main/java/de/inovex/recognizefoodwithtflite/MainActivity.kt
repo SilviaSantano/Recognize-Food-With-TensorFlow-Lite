@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
-import android.widget.ImageView
-import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -14,9 +12,9 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import de.inovex.recognizefoodwithtflite.databinding.ActivityMainBinding
 import java.util.concurrent.Executors
 
 // Listener for the result of the ImageAnalyzer
@@ -29,22 +27,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var imageAnalyzer: ImageAnalysis // Analysis use case, for running ML code
     private lateinit var camera: Camera
     private val cameraExecutor = Executors.newSingleThreadExecutor()
-
-    // Preview and results views
-    private val previewView by lazy {
-        findViewById<PreviewView>(R.id.previewView)
-    }
-    private val resultsTextView by lazy {
-        findViewById<TextView>(R.id.resultsTextView)
-    }
+    private lateinit var binding: ActivityMainBinding
 
     // ViewModel, where the recognition results will be stored and updated with each new image analyzed by the Tensorflow Lite Model.
-    private val recognitionListViewModel: RecognitionListViewModel by viewModels()
+    private val recognitionListViewModel: RecognitionViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_RecognizeFoodWithTFLite)
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+
+        // Inflate view and obtain an instance of the binding class
+        binding = ActivityMainBinding.inflate(layoutInflater)
+
+        // Set Content View
+        setContentView(binding.root)
+
+        // Specify the current activity as the lifecycle owner
+        binding.lifecycleOwner = this
+
+        // Assign the view model
+        binding.viewmodel = recognitionListViewModel
 
         // Request camera permissions
         if (allPermissionsGranted()) {
@@ -52,13 +54,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
-
-        // Update the results whenever there are changes in the recognized item
-        recognitionListViewModel.recognition.observe(this, { result ->
-            runOnUiThread {
-                showResults(result)
-            }
-        })
     }
 
     /**
@@ -136,24 +131,12 @@ class MainActivity : AppCompatActivity() {
                 )
 
                 // Attach the preview to preview view, aka View Finder
-                preview.setSurfaceProvider(previewView.surfaceProvider)
+                preview.setSurfaceProvider(binding.previewView.surfaceProvider)
             } catch (exc: Exception) {
                 Log.e("@string/app_name", "Use case binding failed", exc)
             }
 
         }, ContextCompat.getMainExecutor(this))
-    }
-
-    /**
-     * Display the results of the image analysis over the preview.
-     */
-    private fun showResults(result: Recognition) {
-
-        // Clear previous results
-        resultsTextView.text = ""
-
-        // Show results: label of the result with the highest confidence
-        resultsTextView.text = result.label
     }
 
     companion object {
