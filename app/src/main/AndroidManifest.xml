@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="de.inovex.recognizefoodwithtflite" >
-    <!--
-    Make sure the device has a camera. If you use android.hardware.camera without .any,
-    it will not work if you have a device without a back camera, such as most Chromebooks.
-    -->
-    <uses-feature android:name="android.hardware.camera.any" /> <!-- Specifying that the app will need camera permission -->
+    xmlns:tools="http://schemas.android.com/tools"> <uses-feature android:name="android.hardware.camera.any" />
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application
@@ -14,15 +9,16 @@
         android:label="@string/app_name"
         android:roundIcon="@drawable/foodtf"
         android:supportsRtl="true"
-        android:theme="@style/Theme.RecognizeFoodWithTFLite" >
-        <activity android:name="de.inovex.recognizefoodwithtflite.MainActivity"
-            android:theme="@style/SplashScreenTheme">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+        android:theme="@style/Theme.RecognizeFoodWithTFLite"
+        tools:replace="android:label, android:icon, android:theme"> <activity
+        android:name="de.inovex.recognizefoodwithtflite.MainActivity"
+        android:exported="true"
+        android:theme="@style/SplashScreenTheme">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
     </application>
 
 </manifest>

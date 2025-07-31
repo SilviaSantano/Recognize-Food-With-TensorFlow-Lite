@@ -1,19 +1,28 @@
 buildscript {
-    ext.kotlin_version = "1.4.21"
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:4.1.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.android.tools.build:gradle:8.11.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.23"
     }
 }
 
 allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
+    }
+
+    // ✅ Revised section: Apply rules to dependency configurations of all projects.
+    configurations.all {
+        resolutionStrategy {
+            // forcing the Kotlin library version to 1.9.23.
+            force "org.jetbrains.kotlin:kotlin-stdlib:1.9.23"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.23"
+            force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.23"
+        }
     }
 }
 

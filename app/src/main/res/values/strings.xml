@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">Recognize Food With TFLite</string>
+    <string name="app_name">찍먹</string>
     <string name="permission_deny_text">Required permissions denied. Exiting.</string>
 </resources>

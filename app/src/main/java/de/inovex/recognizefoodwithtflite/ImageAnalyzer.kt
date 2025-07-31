@@ -2,77 +2,87 @@ package de.inovex.recognizefoodwithtflite
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import android.view.Surface
 import android.view.WindowManager
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
-import de.inovex.recognizefoodwithtflite.MainActivity.Companion.HEIGHT
-import de.inovex.recognizefoodwithtflite.MainActivity.Companion.WIDTH
 import de.inovex.recognizefoodwithtflite.ml.LiteModelAiyVisionClassifierFoodV11
 import de.inovex.recognizefoodwithtflite.utils.toBitmap
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
-import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
+import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.Rot90Op
+
 
 class ImageAnalyzer(
     private val ctx: Context,
     private val listener: RecognitionListener
 ) : ImageAnalysis.Analyzer {
 
-    // Tensorflow Lite Model Instance
-    private val model = LiteModelAiyVisionClassifierFoodV11.newInstance(ctx)
-
-    /**
-     * Calculate what rotation of an image is necessary before passing it to the model so as to
-     * compensate for the device rotation.
-     */
-    private fun calculateNecessaryRotation(): Int {
-        return when ((ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.rotation) {
-            Surface.ROTATION_90 -> 0
-            Surface.ROTATION_270 -> 2
-            Surface.ROTATION_180 -> 4
-            Surface.ROTATION_0 -> 3
-            else -> 3
-        }
+    companion object {
+        private var labelsPrinted = false
     }
 
-    /**
-     * Analyze images from the camera stream using a Tensorflow Lite Model which performs
-     * image classification of food in images.
-     * Takes an ImageProxy as argument and returns the recognition results to a listener.
-     */
-    @SuppressLint("UnsafeExperimentalUsageError")
+
+    // Initialize the TFLite model
+    private val model = LiteModelAiyVisionClassifierFoodV11.newInstance(ctx)
+
+    // This function was from your original code and is safer for getting rotation.
+    // I've restored it.
+    private fun getRotationCompensation(): Int {
+        val windowManager = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val rotation = windowManager.defaultDisplay.rotation
+
+        // The Rot90Op operator needs the rotation in multiples of 90 degrees.
+        // Surface.ROTATION_0 = 0, ROTATION_90 = 1, ROTATION_180 = 2, ROTATION_270 = 3
+        return rotation
+    }
+
+    @SuppressLint("UnsafeOptInUsageError")
     override fun analyze(imageProxy: ImageProxy) {
-        val items: MutableList<Recognition> = mutableListOf()
+        val bitmap = imageProxy.image?.toBitmap()
+        if (bitmap == null) {
+            imageProxy.close()
+            return
+        }
 
-        // IMAGE PREPROCESSING
+        // Re-initialize the processor in each frame to get the latest rotation.
         val imageProcessor = ImageProcessor.Builder()
-            // Center crop the image
-            .add(ResizeWithCropOrPadOp(HEIGHT, WIDTH))
-            // Rotate
-            .add(Rot90Op(calculateNecessaryRotation()))
+            .add(ResizeOp(MainActivity.HEIGHT, MainActivity.WIDTH, ResizeOp.ResizeMethod.BILINEAR))
+            // Use the safer rotation compensation function
+            .add(Rot90Op(getRotationCompensation()))
             .build()
-        var tImage = TensorImage(DataType.FLOAT32)
-        val bitmap = imageProxy.image!!.toBitmap()
-        tImage.load(bitmap)
-        tImage = imageProcessor.process(tImage)
 
-        // INFERENCE
-        // Process the model
-        val outputs = model.process(tImage)
-        // Extract the recognition results
-        val food = outputs.probabilityAsCategoryList
-        for (f in food)
-            items.add(Recognition(f.label, f.score))
+        val tensorImage = TensorImage(DataType.UINT8)
+        tensorImage.load(bitmap)
+        val processedImage = imageProcessor.process(tensorImage)
 
-        // Sort the results by their confidence and return the three with the highest
-        listener(items.apply {
-            sortByDescending { it.confidence }
-        }.toList()[0])
+        // Run inference
+        val outputs = model.process(processedImage)
+        val probability = outputs.probabilityAsCategoryList
 
-        // Close the image. This tells CameraX to feed the next image to the analyzer
+
+
+        // ▼▼▼▼▼ all labels on logcat ▼▼▼▼▼
+        if (probability.isNotEmpty()) {
+            if (!labelsPrinted) {
+                Log.d("ModelLabels", "--- All Supported Labels from Model ---")
+                probability.sortedBy { it.label }.forEach { category ->
+                    Log.d("ModelLabels", category.label)
+                }
+                labelsPrinted = true
+            }
+        }
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+        // Find the best result safely
+        val bestResult = probability.maxByOrNull { it.score }
+        bestResult?.let {
+            listener(Recognition(it.label, it.score))
+        }
+
         imageProxy.close()
     }
 }
